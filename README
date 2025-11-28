@@ -1,0 +1,34 @@
+# High Performance Ledger System 🏦
+
+Un sistema transaccional financiero robusto diseñado para manejar operaciones bancarias de alta concurrencia, garantizando la integridad de datos bajo cargas de estrés (Race Conditions).
+
+## Desafío Técnico
+En sistemas financieros reales, el problema del **"Double Spending"** ocurre cuando múltiples peticiones intentan gastar el mismo saldo simultáneamente. Este proyecto resuelve este problema implementando **Optimistic Locking** a nivel de base de datos, asegurando consistencia ACID sin sacrificar el rendimiento de la aplicación.
+
+## Tech Stack
+* **Java 17 & Spring Boot 3**: Core backend framework.
+* **PostgreSQL**: Motor de base de datos relacional.
+* **Hibernate/JPA**: ORM con gestión de concurrencia (`@Version`).
+* **Docker & Docker Compose**: Orquestación de infraestructura local.
+* **JUnit 5 & Mockito**: Testing unitario y de integración.
+* **Swagger/OpenAPI**: Documentación automática de API REST.
+
+## Key Features
+* **Prevención de Race Conditions**: Implementación de bloqueo optimista para evitar saldos negativos ante peticiones paralelas masivas.
+* **Transaccionalidad ACID**: Garantía de atomicidad en operaciones complejas (débito + crédito + auditoría).
+* **Audit Logging**: Registro inmutable de cada transacción financiera.
+* **API RESTful**: Endpoints documentados para integración con clientes externos.
+
+## Cómo probar la Concurrencia
+El proyecto incluye un Test de Integración (`ConcurrencyTest.java`) que simula **50 hilos concurrentes** intentando debitar dinero de una misma cuenta.
+Resultados típicos:
+- Peticiones lanzadas: 50
+- Transacciones exitosas: ~30
+- Transacciones bloqueadas (Safety Catch): ~20
+- **Saldo final: 100% Consistente.**
+
+## 🔧 Instalación y Ejecución
+1. Clonar el repositorio.
+2. Levantar la base de datos:
+   ```bash
+   docker-compose up -d

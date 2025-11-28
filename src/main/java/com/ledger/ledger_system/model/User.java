@@ -2,7 +2,6 @@ package com.ledger.ledger_system.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
-
 import java.time.LocalDateTime;
 
 @Data
@@ -16,7 +15,10 @@ public class User {
 
     private String name;
 
+    @Column(unique = true) // El Email no se puede repetir
     private String email;
+
+    private String password;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

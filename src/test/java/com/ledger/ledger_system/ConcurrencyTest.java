@@ -3,8 +3,10 @@ package com.ledger.ledger_system;
 import com.ledger.ledger_system.model.Account;
 import com.ledger.ledger_system.model.User;
 import com.ledger.ledger_system.repository.AccountRepository;
+import com.ledger.ledger_system.repository.TransactionRepository; // <--- Nuevo Import
 import com.ledger.ledger_system.repository.UserRepository;
 import com.ledger.ledger_system.service.TransferService;
+import org.junit.jupiter.api.BeforeEach; // <--- Nuevo Import
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -29,25 +31,39 @@ public class ConcurrencyTest {
     @Autowired
     private AccountRepository accountRepository;
 
+    @Autowired
+    private TransactionRepository transactionRepository; // <--- Inyectamos esto para poder borrar el historial
+
+    // ESTE ES EL ARREGLO: Limpiar la BD antes de cada test
+    @BeforeEach
+    public void setUp() {
+        // Borramos en orden para no romper claves foráneas (Hijo -> Padre)
+        transactionRepository.deleteAll();
+        accountRepository.deleteAll();
+        userRepository.deleteAll();
+    }
+
     @Test
     public void testConcurrentTransfers() throws InterruptedException {
         System.out.println("--- INICIANDO PRUEBA DE HACKEO (CONCURRENCIA) ---");
 
-        // 1. Preparar datos: Crear un usuario rico y uno pobre
+        // 1. Preparar datos
         User user1 = new User();
         user1.setName("User Rico");
         user1.setEmail("rico@test.com");
+        user1.setPassword("123456"); // Agregamos password (requerido ahora)
         user1 = userRepository.save(user1);
 
         User user2 = new User();
         user2.setName("User Pobre");
         user2.setEmail("pobre@test.com");
+        user2.setPassword("123456"); // Agregamos password
         user2 = userRepository.save(user2);
 
         Account account1 = new Account();
         account1.setUser(user1);
         account1.setAccountNumber("999999");
-        account1.setBalance(new BigDecimal("1000.00")); // Tiene 1000
+        account1.setBalance(new BigDecimal("1000.00"));
         account1 = accountRepository.save(account1);
 
         Account account2 = new Account();
@@ -56,12 +72,11 @@ public class ConcurrencyTest {
         account2.setBalance(new BigDecimal("0.00"));
         account2 = accountRepository.save(account2);
 
-        // 2. Configurar el ataque: 50 hilos intentando sacar dinero a la vez
+        // 2. Configurar el ataque
         int numberOfThreads = 50;
         ExecutorService executorService = Executors.newFixedThreadPool(numberOfThreads);
         CountDownLatch latch = new CountDownLatch(numberOfThreads);
 
-        // Contadores para ver qué pasa
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failCount = new AtomicInteger(0);
 
@@ -71,12 +86,9 @@ public class ConcurrencyTest {
         for (int i = 0; i < numberOfThreads; i++) {
             executorService.submit(() -> {
                 try {
-                    // Intentamos transferir 20 (50 veces * 20 = 1000 total)
                     transferService.transferMoney(sourceId, targetId, new BigDecimal("20.00"));
                     successCount.incrementAndGet();
                 } catch (Exception e) {
-                    // Si falla (por bloqueo optimista), contamos el fallo
-                    System.out.println("Transacción rechazada por seguridad: " + e.getMessage());
                     failCount.incrementAndGet();
                 } finally {
                     latch.countDown();
@@ -84,9 +96,9 @@ public class ConcurrencyTest {
             });
         }
 
-        latch.await(); // Esperar a que terminen todos los hilos
+        latch.await();
 
-        // 3. Verificación final
+        // 3. Verificación
         Account updatedAccount1 = accountRepository.findById(sourceId).orElseThrow();
         Account updatedAccount2 = accountRepository.findById(targetId).orElseThrow();
 
@@ -96,10 +108,9 @@ public class ConcurrencyTest {
         System.out.println("Saldo final Cuenta Origen: " + updatedAccount1.getBalance());
         System.out.println("Saldo final Cuenta Destino: " + updatedAccount2.getBalance());
 
-        // La suma de dinero siempre debe ser 1000 (No se creó ni destruyó dinero)
         BigDecimal totalSystem = updatedAccount1.getBalance().add(updatedAccount2.getBalance());
         assertEquals(0, new BigDecimal("1000.00").compareTo(totalSystem));
 
-        System.out.println("--- PRUEBA SUPERADA: EL DINERO ESTÁ A SALVO ---");
+        System.out.println("--- PRUEBA SUPERADA ---");
     }
 }
