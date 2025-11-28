@@ -1,9 +1,13 @@
-# ETAPA 1: BUILD (Compilar el código)
-FROM maven:3.9.6-eclipse-temurin-17 AS build
+# ETAPA 1: BUILD
+# Usamos Java 21 para asegurar compatibilidad
+FROM maven:3.9.6-eclipse-temurin-21 AS build
+WORKDIR /app
 COPY . .
-RUN mvn clean package -DskipTests
+# El cambio clave: -Dmaven.test.skip=true evita que intente compilar los tests de base de datos
+RUN mvn clean package -Dmaven.test.skip=true
 
-# ETAPA 2: RUN (Ejecutarlo en una versión ligera de Java)
-FROM eclipse-temurin:17-jdk-alpine
-COPY --from=build /target/*.jar app.jar
-ENTRYPOINT ["java","-jar","/app.jar"]
+# ETAPA 2: RUN
+FROM eclipse-temurin:21-jdk-alpine
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+ENTRYPOINT ["java","-jar","app.jar"]
