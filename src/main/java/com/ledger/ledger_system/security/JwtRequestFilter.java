@@ -31,35 +31,38 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         final String authorizationHeader = request.getHeader("Authorization");
-
         String username = null;
         String jwt = null;
 
-        // 1. Buscamos el header "Authorization: Bearer eyJhb..."
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-            jwt = authorizationHeader.substring(7); // Quitamos la palabra "Bearer "
-            username = jwtUtil.extractUsername(jwt);
-        }
-
-        // 2. Si hay usuario y no está autenticado todavía en el sistema
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-
-            // Verificamos que el usuario exista en BD
-            com.ledger.ledger_system.model.User dbUser = userRepository.findByEmail(username);
-
-            if (dbUser != null && jwtUtil.validateToken(jwt)) {
-
-                // Creamos la sesión de seguridad temporal
-                UserDetails userDetails = new User(dbUser.getEmail(), dbUser.getPassword(), new ArrayList<>());
-
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+            jwt = authorizationHeader.substring(7);
+            try {
+                username = jwtUtil.extractUsername(jwt);
+                System.out.println("✅ TOKEN LEIDO. USUARIO: " + username);
+            } catch (Exception e) {
+                System.out.println("❌ ERROR DE FIRMA/TOKEN: " + e.getMessage());
             }
         }
 
-        // 3. Dejar pasar la petición (al siguiente filtro o al controlador)
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            System.out.println("🔎 BUSCANDO USUARIO EN DB: " + username);
+
+            var dbUser = userRepository.findByEmail(username);
+
+            if (dbUser == null) {
+                System.out.println("⛔ USUARIO NO ENCONTRADO EN BASE DE DATOS");
+            } else if (jwtUtil.validateToken(jwt)) {
+                System.out.println("🔓 ACCESO CONCEDIDO A: " + username);
+                // ... lógica de autenticación ...
+                UserDetails userDetails = new User(dbUser.getEmail(), dbUser.getPassword(), new ArrayList<>());
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                        userDetails, null, userDetails.getAuthorities());
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            } else {
+                System.out.println("⚠️ TOKEN INVALIDO (Aunque el usuario existe)");
+            }
+        }
+
         chain.doFilter(request, response);
     }
 }
