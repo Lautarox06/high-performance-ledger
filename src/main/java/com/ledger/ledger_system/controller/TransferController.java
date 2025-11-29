@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/transactions")
@@ -19,7 +20,7 @@ public class TransferController {
     }
 
     @PostMapping("/transfer")
-    public ResponseEntity<String> transfer(@RequestBody TransferRequest request) {
+    public ResponseEntity<String> transfer(@Valid @RequestBody TransferRequest request) {
 
         try {
             transferService.transferMoney(
